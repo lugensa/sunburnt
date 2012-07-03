@@ -22,6 +22,9 @@ setup(
     author_email='toby@timetric.com',
     packages=['sunburnt'],
     requires=['httplib2', 'lxml', 'pytz'],
+    setup_requires=[
+        'setuptools-git'
+    ],
     install_requires=[
         'httplib2',
         'lxml',
