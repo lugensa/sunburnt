@@ -17,7 +17,8 @@ setup(
     name='sunburnt',
     version=version_number,
     description='Python interface to Solr',
-    long_description=open('README.rst').read(),
+    long_description=open('README.rst').read() + "\n" +
+                     open('Changelog').read(),
     author='Toby White',
     author_email='toby@timetric.com',
     url='http://opensource.timetric.com/sunburnt/',
