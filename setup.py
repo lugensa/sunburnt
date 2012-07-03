@@ -20,6 +20,7 @@ setup(
     long_description=open('README.rst').read(),
     author='Toby White',
     author_email='toby@timetric.com',
+    url='http://opensource.timetric.com/sunburnt/',
     packages=['sunburnt'],
     requires=['httplib2', 'lxml', 'pytz'],
     setup_requires=[
