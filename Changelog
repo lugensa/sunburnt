@@ -13,7 +13,8 @@ Change Log
 0.7 (unreleased)
 ----------------
 
-- No changes yet.
+- Use Distribute to enable automatic dependency installation.
+  [davidjb]
 
 
 0.6 (2012-01-01)
