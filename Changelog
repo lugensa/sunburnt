@@ -4,6 +4,9 @@ Change Log
 0.7 (unreleased)
 ----------------
 
+- Ensure 'more like this' results are transformed using a query's
+  execute() `constructor`, as are normal query results. 
+  [davidjb]
 - Use Distribute to enable automatic dependency installation.
   [davidjb]
 
