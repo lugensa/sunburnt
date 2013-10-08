@@ -1,13 +1,6 @@
 #!/usr/bin/env python
 
-import os, re
-
-try:
-    from setuptools import setup
-except ImportError:
-    import distribute_setup
-    distribute_setup.use_setuptools()
-    from setuptools import setup
+from setuptools import setup
 
 version = '0.8.dev0'
 
@@ -21,7 +14,12 @@ setup(
     author_email='toby@timetric.com',
     url='http://opensource.timetric.com/sunburnt/',
     packages=['sunburnt'],
-    requires=['httplib2', 'lxml', 'pytz'],
+    requires=[
+        'setuptools >= 1.1.6',
+        'httplib2',
+        'lxml',
+        'pytz'
+    ],
     setup_requires=[
         'setuptools-git'
     ],
