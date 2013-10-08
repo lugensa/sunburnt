@@ -24,8 +24,8 @@ from .test_sunburnt import MockConnection, MockResponse
 
 from nose.tools import assert_equal
 
-debug = False
-
+#debug = False
+debug = True
 schema_string = \
 """<schema name="timetric" version="1.1">
   <types>
@@ -239,7 +239,7 @@ def check_query_data(method, args, kwargs, output):
         if debug:
             print p
             print output
-            import pdb;pdb.set_trace()
+            import ipdb;ipdb.set_trace()
             raise
         else:
             raise
