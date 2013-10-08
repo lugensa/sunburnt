@@ -5,3 +5,7 @@ MANIFEST
 build
 dist
 docs/_build
+env/
+setuptools_git-*/
+*.egg-info/
+

@@ -14,16 +14,11 @@ setup(
     author_email='toby@timetric.com',
     url='http://opensource.timetric.com/sunburnt/',
     packages=['sunburnt'],
-    requires=[
-        'setuptools >= 1.1.6',
-        'httplib2',
-        'lxml',
-        'pytz'
-    ],
     setup_requires=[
         'setuptools-git'
     ],
     install_requires=[
+        'setuptools >= 1.1.6',
         'httplib2',
         'lxml',
         'pytz'
