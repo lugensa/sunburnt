@@ -4,6 +4,8 @@ Change Log
 0.7 (unreleased)
 ----------------
 
+- Refactoring, startet pep8 and fixing tests.
+  [jod]
 - Provide default string-based field for schema field types unknown to
 - Escape forward slash characters for compatibility with Solr 4.0 (@davidjb)
   Sunburnt. (@davidjb)
