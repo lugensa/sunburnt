@@ -4,6 +4,8 @@ Change Log
 0.7 (unreleased)
 ----------------
 
+- Added multiple fq parameters.
+  [jod, redapple]
 - Refactoring, startet pep8 and fixing tests.
   [jod]
 - Provide default string-based field for schema field types unknown to

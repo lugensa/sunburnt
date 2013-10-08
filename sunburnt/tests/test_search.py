@@ -101,10 +101,11 @@ good_query_data = {
     "filter_by_term": [
         (["hello"], {},
          [("fq", u"hello"), ("q", "*:*")]),
-        (["hello"], {"int_field": 3},
-         [("fq", u"hello AND int_field:3"), ("q", "*:*")]),
+        #test multiple fq
+        (["hello"], {"int_field":3},
+         [("fq", u"hello"), ("fq", u"int_field:3"), ("q", "*:*")]),
         (["hello", "world"], {},
-         [("fq", u"hello AND world"), ("q", "*:*")]),
+         [("fq", u"hello"), ("fq", u"world"), ("q", "*:*")]),
         # NB this next is not really what we want,
         # probably this should warn
         (["hello world"], {},
@@ -114,10 +115,11 @@ good_query_data = {
     "filter_by_phrase": [
         (["hello"], {},
          [("fq", u"hello"), ("q", "*:*")]),
-        (["hello"], {"int_field": 3},
-         [("fq", u"int_field:3 AND hello"), ("q", "*:*")]),
+        #test multiple fq
+        (["hello"], {"int_field":3},
+         [("fq", u"hello"), ("fq", u"int_field:3"), ("q", "*:*")]),
         (["hello", "world"], {},
-         [("fq", u"hello AND world"), ("q", "*:*")]),
+         [("fq", u"hello"), ("fq", u"world"), ("q", "*:*")]),
         (["hello world"], {},
          [("fq", u"hello\\ world"), ("q", "*:*")]),
     ],
@@ -125,10 +127,11 @@ good_query_data = {
     "filter": [
         (["hello"], {},
          [("fq", u"hello"), ("q", "*:*")]),
-        (["hello"], {"int_field": 3},
-         [("fq", u"hello AND int_field:3"), ("q", "*:*")]),
+        #test multiple fq
+        (["hello"], {"int_field":3},
+         [("fq", u"hello"), ("fq", "int_field:3"), ("q", "*:*")]),
         (["hello", "world"], {},
-         [("fq", u"hello AND world"), ("q", "*:*")]),
+         [("fq", u"hello"), ("fq", u"world"), ("q", "*:*")]),
         (["hello world"], {},
          [("fq", u"hello\\ world"), ("q", "*:*")]),
     ],
@@ -406,10 +409,11 @@ def check_bad_option_data(OptionClass, kwargs):
 complex_boolean_queries = (
     (lambda q: q.query("hello world").filter(q.Q(text_field="tow") | q.Q(boolean_field=False, int_field__gt=3)),
      [('fq', u'text_field:tow OR (boolean_field:false AND int_field:{3 TO *})'), ('q', u'hello\\ world')]),
+    #test multiple fq
     (lambda q: q.query("hello world").filter(q.Q(text_field="tow") & q.Q(boolean_field=False, int_field__gt=3)),
-     [('fq', u'boolean_field:false AND text_field:tow AND int_field:{3 TO *}'), ('q',  u'hello\\ world')]),
-    # Test various combinations of NOTs at the top level.
-    # Sometimes we need to do the *:* trick, sometimes not.
+     [('fq', u'boolean_field:false'), ('fq', u'int_field:{3 TO *}'), ('fq', u'text_field:tow'), ('q',  u'hello\\ world')]),
+# Test various combinations of NOTs at the top level.
+# Sometimes we need to do the *:* trick, sometimes not.
     (lambda q: q.query(~q.Q("hello world")),
      [('q',  u'NOT hello\\ world')]),
     (lambda q: q.query(~q.Q("hello world") & ~q.Q(int_field=3)),
@@ -482,13 +486,13 @@ complex_boolean_queries = (
 def check_complex_boolean_query(solr_search, query, output):
     p = query(solr_search).params()
     try:
-        assert p == output
+        assert p == output, "Unequal: %r, %r" % (p, output)
     except AssertionError:
         if debug:
             print p
             print output
-            import pdb
-            pdb.set_trace()
+            import ipdb
+            ipdb.set_trace()
             raise
         else:
             raise
@@ -500,8 +504,8 @@ def check_complex_boolean_query(solr_search, query, output):
         if debug:
             print p
             print q
-            import pdb
-            pdb.set_trace()
+            import ipdb
+            ipdb.set_trace()
             raise
 
 param_encode_data = (
