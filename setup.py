@@ -21,10 +21,7 @@ setup(
         'setuptools >= 1.1.6',
         'httplib2',
         'lxml',
-        'pytz',
-        #'egenix-mx-base',
-        'nose',
-        'coverage',
+        'pytz'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',

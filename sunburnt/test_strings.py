@@ -1,4 +1,4 @@
-from sunburnt.strings import RawString
+from .strings import RawString
 
 
 def test_string_escape():

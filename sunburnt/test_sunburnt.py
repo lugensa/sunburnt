@@ -1,17 +1,23 @@
-import cgi
-import urlparse
+from __future__ import absolute_import
+
+try:
+    from cStringIO import StringIO
+except ImportError:
+    from StringIO import StringIO
+
+import cgi, datetime, urlparse
 
 from lxml.builder import E
 from lxml.etree import tostring
 
-from sunburnt.sunburnt import SolrInterface
+from .sunburnt import SolrInterface
 
 from nose.tools import assert_equal
 
 debug = False
 
-schema_string = """
-<schema name="timetric" version="1.1">
+schema_string = \
+"""<schema name="timetric" version="1.1">
   <types>
     <fieldType name="string" class="solr.StrField" sortMissingLast="true" omitNorms="true"/>
     <fieldType name="text" class="solr.TextField" sortMissingLast="true" omitNorms="true"/>

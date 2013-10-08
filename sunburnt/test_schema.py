@@ -11,8 +11,8 @@ except ImportError:
     HAS_MX_DATETIME = False
 import pytz
 
-from sunburnt.schema import (solr_date, SolrSchema, SolrError, SolrUpdate,
-                             SolrDelete)
+from .schema import solr_date, SolrSchema, SolrError, SolrUpdate, SolrDelete
+from .search import LuceneQuery
 
 debug = False
 
@@ -20,62 +20,55 @@ not_utc = pytz.timezone('Etc/GMT-3')
 
 samples_from_pydatetimes = {
     "2009-07-23T03:24:34.000376Z":
-    [datetime.datetime(2009, 07, 23, 3, 24, 34, 376),
-     datetime.datetime(2009, 07, 23, 3, 24, 34, 376, pytz.utc)],
+        [datetime.datetime(2009, 07, 23, 3, 24, 34, 376),
+         datetime.datetime(2009, 07, 23, 3, 24, 34, 376, pytz.utc)],
     "2009-07-23T00:24:34.000376Z":
-    [not_utc.localize(datetime.datetime(2009, 07, 23, 3, 24, 34, 376)),
-     datetime.datetime(2009, 07, 23, 0, 24, 34, 376, pytz.utc)],
+        [not_utc.localize(datetime.datetime(2009, 07, 23, 3, 24, 34, 376)),
+         datetime.datetime(2009, 07, 23, 0, 24, 34, 376, pytz.utc)],
     "2009-07-23T03:24:34Z":
-    [datetime.datetime(2009, 07, 23, 3, 24, 34),
-     datetime.datetime(2009, 07, 23, 3, 24, 34, tzinfo=pytz.utc)],
+        [datetime.datetime(2009, 07, 23, 3, 24, 34),
+         datetime.datetime(2009, 07, 23, 3, 24, 34, tzinfo=pytz.utc)],
     "2009-07-23T00:24:34Z":
-    [not_utc.localize(datetime.datetime(2009, 07, 23, 3, 24, 34)),
-     datetime.datetime(2009, 07, 23, 0, 24, 34, tzinfo=pytz.utc)]
-}
+        [not_utc.localize(datetime.datetime(2009, 07, 23, 3, 24, 34)),
+         datetime.datetime(2009, 07, 23, 0, 24, 34, tzinfo=pytz.utc)]
+    }
 
 if HAS_MX_DATETIME:
     samples_from_mxdatetimes = {
         "2009-07-23T03:24:34.000376Z":
-        [mx.DateTime.DateTime(2009, 07, 23, 3, 24, 34.000376),
-         datetime.datetime(2009, 07, 23, 3, 24, 34, 376, pytz.utc)],
+            [mx.DateTime.DateTime(2009, 07, 23, 3, 24, 34.000376),
+             datetime.datetime(2009, 07, 23, 3, 24, 34, 376, pytz.utc)],
         "2009-07-23T03:24:34Z":
-        [mx.DateTime.DateTime(2009, 07, 23, 3, 24, 34),
-         datetime.datetime(2009, 07, 23, 3, 24, 34, tzinfo=pytz.utc)],
-    }
+            [mx.DateTime.DateTime(2009, 07, 23, 3, 24, 34),
+             datetime.datetime(2009, 07, 23, 3, 24, 34, tzinfo=pytz.utc)],
+        }
 
 
 samples_from_strings = {
     # These will not have been serialized by us, but we should deal with them
     "2009-07-23T03:24:34Z":
-    datetime.datetime(2009, 07, 23, 3, 24, 34, tzinfo=pytz.utc),
+        datetime.datetime(2009, 07, 23, 3, 24, 34, tzinfo=pytz.utc),
     "2009-07-23T03:24:34.1Z":
-    datetime.datetime(2009, 07, 23, 3, 24, 34, 100000, pytz.utc),
+        datetime.datetime(2009, 07, 23, 3, 24, 34, 100000, pytz.utc),
     "2009-07-23T03:24:34.123Z":
-    datetime.datetime(2009, 07, 23, 3, 24, 34, 122999, pytz.utc)
-}
-
+        datetime.datetime(2009, 07, 23, 3, 24, 34, 123000, pytz.utc)
+    }
 
 def check_solr_date_from_date(s, date, canonical_date):
-    assert unicode(solr_date(date)) == s, "Unequal representations of %r: %r and %r" % (
-        date, unicode(solr_date(date)), s)
+    assert unicode(solr_date(date)) == s, "Unequal representations of %r: %r and %r" % (date, unicode(solr_date(date)), s)
     check_solr_date_from_string(s, canonical_date)
 
-
 def check_solr_date_from_string(s, date):
-    if not HAS_MX_DATETIME:
-        assert solr_date(s)._dt_obj == date, "Unequal %s, %s" % (solr_date(s)._dt_obj, date)
-
+    assert solr_date(s)._dt_obj == date
 
 def test_solr_date_from_pydatetimes():
     for k, v in samples_from_pydatetimes.items():
         yield check_solr_date_from_date, k, v[0], v[1]
 
-
 def test_solr_date_from_mxdatetimes():
     if HAS_MX_DATETIME:
         for k, v in samples_from_mxdatetimes.items():
             yield check_solr_date_from_date, k, v[0], v[1]
-
 
 def test_solr_date_from_strings():
     for k, v in samples_from_strings.items():
@@ -102,9 +95,7 @@ good_schema = \
  </schema>
 """
 
-
 class TestReadingSchema(object):
-
     def setUp(self):
         self.schema = StringIO.StringIO(good_schema)
         self.s = SolrSchema(self.schema)
@@ -158,31 +149,30 @@ class TestReadingSchema(object):
         """ Check operation of a field type that is unknown to Sunburnt.
         """
         assert 'solr.SpatialRecursivePrefixTreeFieldType' \
-            not in SolrSchema.solr_data_types
+                not in SolrSchema.solr_data_types
         field = self.s.fields['location_field']
         assert field
 
-        # Boolean attributes are converted accordingly
+        #Boolean attributes are converted accordingly
         assert field.geo == True
-        # All other attributes are strings
+        #All other attributes are strings
         assert field.units == 'degrees'
         assert field.distErrPct == '0.025'
         assert field.maxDistErr == '0.000009'
 
-        # Test that the value is always consistent - both to and from Solr
+        #Test that the value is always consistent - both to and from Solr
         value = 'POLYGON ((30 10, 10 20, 20 40, 40 40, 30 10))'
         assert field.to_user_data(value) \
-            == field.from_user_data(value) \
-            == field.to_solr(value) \
-            == field.from_solr(value)
+                == field.from_user_data(value) \
+                == field.to_solr(value) \
+                == field.from_solr(value)
 
-        # Queried values will be escaped accordingly
-        assert field.to_query(
-            value) == u'POLYGON\\ \\(\\(30\\ 10,\\ 10\\ 20,\\ 20\\ 40,\\ 40\\ 40,\\ 30\\ 10\\)\\)'
+        #Queried values will be escaped accordingly
+        assert field.to_query(value) == u'POLYGON\\ \\(\\(30\\ 10,\\ 10\\ 20,\\ 20\\ 40,\\ 40\\ 40,\\ 30\\ 10\\)\\)'
 
 
 broken_schemata = {
-    "missing_name":
+"missing_name":
 """
 <schema name="timetric" version="1.1">
   <types>
@@ -193,7 +183,7 @@ broken_schemata = {
   </fields>
  </schema>
 """,
-    "missing_type":
+"missing_type":
 """
 <schema name="timetric" version="1.1">
   <types>
@@ -204,7 +194,7 @@ broken_schemata = {
   </fields>
  </schema>
 """,
-    "misnamed_type":
+"misnamed_type":
 """
 <schema name="timetric" version="1.1">
   <types>
@@ -215,10 +205,9 @@ broken_schemata = {
   </fields>
  </schema>
 """,
-    "invalid XML":
-    "kjhgjhg"
+"invalid XML":
+"kjhgjhg"
 }
-
 
 def check_broken_schemata(n, s):
     try:
@@ -228,14 +217,12 @@ def check_broken_schemata(n, s):
     else:
         assert False
 
-
 def test_broken_schemata():
     for k, v in broken_schemata.items():
         yield check_broken_schemata, k, v
 
 
 class D(object):
-
     def __init__(self, int_field, text_field=None, my_arse=None):
         self.int_field = int_field
         if text_field:
@@ -245,7 +232,6 @@ class D(object):
 
 
 class StringWrapper(object):
-
     def __init__(self, s):
         self.s = s
 
@@ -254,7 +240,6 @@ class StringWrapper(object):
 
 
 class D_with_callables(object):
-
     def __init__(self, int_field, text_field=None, my_arse=None):
         self._int_field = int_field
         if text_field:
@@ -274,13 +259,13 @@ class D_with_callables(object):
 
 update_docs = [
     # One single dictionary, not making use of multivalued field
-    ({"int_field": 1, "text_field": "a"},
+    ({"int_field":1, "text_field":"a"},
      """<add><doc><field name="int_field">1</field><field name="text_field">a</field></doc></add>"""),
     # One single dictionary, with multivalued field
-    ({"int_field": 1, "text_field": ["a", "b"]},
+    ({"int_field":1, "text_field":["a", "b"]},
      """<add><doc><field name="int_field">1</field><field name="text_field">a</field><field name="text_field">b</field></doc></add>"""),
     # List of dictionaries
-    ([{"int_field": 1, "text_field": "a"}, {"int_field": 2, "text_field": "b"}],
+    ([{"int_field":1, "text_field":"a"}, {"int_field":2, "text_field":"b"}],
      """<add><doc><field name="int_field">1</field><field name="text_field">a</field></doc><doc><field name="int_field">2</field><field name="text_field">b</field></doc></add>"""),
     # One single object, not making use of multivalued fields
     (D(1, "a"),
@@ -292,7 +277,7 @@ update_docs = [
     ([D(1, "a"), D(2, "b")],
      """<add><doc><field name="int_field">1</field><field name="text_field">a</field></doc><doc><field name="int_field">2</field><field name="text_field">b</field></doc></add>"""),
     # Mixed list of objects & dictionaries
-    ([D(1, "a"), {"int_field": 2, "text_field": "b"}],
+    ([D(1, "a"), {"int_field":2, "text_field":"b"}],
      """<add><doc><field name="int_field">1</field><field name="text_field">a</field></doc><doc><field name="int_field">2</field><field name="text_field">b</field></doc></add>"""),
 
     # object containing key to be ignored
@@ -300,7 +285,7 @@ update_docs = [
      """<add><doc><field name="int_field">1</field><field name="text_field">a</field></doc></add>"""),
 
     # Make sure we distinguish strings and lists
-    ({"int_field": 1, "text_field": "abcde"},
+    ({"int_field":1, "text_field":"abcde"},
       """<add><doc><field name="int_field">1</field><field name="text_field">abcde</field></doc></add>"""),
 
     # Check attributes which are objects to be converted.
@@ -314,8 +299,7 @@ update_docs = [
     # Check that strings aren't query-escaped
     (D(1, "a b", True),
      """<add><doc><field name="int_field">1</field><field name="text_field">a b</field></doc></add>"""),
-]
-
+    ]
 
 def check_update_serialization(s, obj, xml_string):
     p = str(SolrUpdate(s, obj))
@@ -325,11 +309,9 @@ def check_update_serialization(s, obj, xml_string):
         except AssertionError:
             print p
             print xml_string
-            import pdb
-            pdb.set_trace()
+            import pdb;pdb.set_trace()
     else:
         assert p == xml_string
-
 
 def test_update_serialization():
     s = SolrSchema(StringIO.StringIO(good_schema))
@@ -338,13 +320,12 @@ def test_update_serialization():
 
 bad_updates = [
     # Dictionary containing bad field name
-    {"int_field": 1, "text_field": "a", "my_arse": True},
+    {"int_field":1, "text_field":"a", "my_arse":True},
     # Dictionary missing required field name
-    {"int_field": 1},
+    {"int_field":1},
     # Object missing required field_name
     D(1),
-]
-
+    ]
 
 def check_broken_updates(s, obj):
     try:
@@ -353,7 +334,6 @@ def check_broken_updates(s, obj):
         pass
     else:
         assert False
-
 
 def test_bad_updates():
     s = SolrSchema(StringIO.StringIO(good_schema))
@@ -375,10 +355,10 @@ delete_docs = [
     (["1", 2, "3"],
      """<delete><id>1</id><id>2</id><id>3</id></delete>"""),
     # Dictionary
-    ({"int_field": 1, "text_field": "a"},
+    ({"int_field":1, "text_field":"a"},
      """<delete><id>1</id></delete>"""),
     # List of dictionaries
-    ([{"int_field": 1, "text_field": "a"}, {"int_field": 2, "text_field": "b"}],
+    ([{"int_field":1, "text_field":"a"}, {"int_field":2, "text_field":"b"}],
      """<delete><id>1</id><id>2</id></delete>"""),
     # Object
     (D(1, "a"),
@@ -387,14 +367,12 @@ delete_docs = [
     ([D(1, "a"), D(2, "b")],
      """<delete><id>1</id><id>2</id></delete>"""),
     # Mixed string & int ids, dicts, and objects
-    (["0", {"int_field": 1, "text_field": "a"}, D(2, "b"), 3],
+    (["0", {"int_field":1, "text_field":"a"}, D(2, "b"), 3],
      """<delete><id>0</id><id>1</id><id>2</id><id>3</id></delete>"""),
-]
-
+    ]
 
 def check_delete_docs(s, doc, xml_string):
     assert str(SolrDelete(s, docs=doc)) == xml_string
-
 
 def test_delete_docs():
     s = SolrSchema(StringIO.StringIO(good_schema))
@@ -407,26 +385,22 @@ delete_queries = [
      """<delete><query>search</query></delete>"""),
     ([(["search1"], {}), (["search2"], {})],
      """<delete><query>search1</query><query>search2</query></delete>"""),
-    ([([], {"*": "*"})],
+    ([([], {"*":"*"})],
      """<delete><query>*:*</query></delete>"""),
-]
-
+    ]
 
 def check_delete_queries(s, queries, xml_string):
-    p = str(
-        SolrDelete(s, queries=[s.Q(*args, **kwargs) for args, kwargs in queries]))
+    p = str(SolrDelete(s, queries=[s.Q(*args, **kwargs) for args, kwargs in queries]))
     if debug:
         try:
             assert p == xml_string
         except AssertionError:
             print p
             print xml_string
-            import pdb
-            pdb.set_trace()
+            import pdb;pdb.set_trace()
             raise
     else:
         assert p == xml_string
-
 
 def test_delete_queries():
     s = SolrSchema(StringIO.StringIO(good_schema))
@@ -456,7 +430,6 @@ new_field_types_schema = \
   </fields>
  </schema>
 """
-
 
 def test_binary_data_understood_ok():
     s = SolrSchema(StringIO.StringIO(new_field_types_schema))
@@ -496,18 +469,15 @@ def test_uuid_data_understood_ok():
 
     user_data = "12980286-591b-40c6-aa08-b4393a6d13b3"
     field_inst = s.field_from_user_data('id', user_data)
-    assert field_inst.value == uuid.UUID(
-        "12980286-591b-40c6-aa08-b4393a6d13b3")
+    assert field_inst.value == uuid.UUID("12980286-591b-40c6-aa08-b4393a6d13b3")
 
     user_data = uuid.UUID("12980286-591b-40c6-aa08-b4393a6d13b3")
     field_inst = s.field_from_user_data('id', user_data)
-    assert field_inst.value == uuid.UUID(
-        "12980286-591b-40c6-aa08-b4393a6d13b3")
+    assert field_inst.value == uuid.UUID("12980286-591b-40c6-aa08-b4393a6d13b3")
 
     user_data = "NEW"
     field_inst = s.field_from_user_data('id', user_data)
 
     solr_data = "12980286-591b-40c6-aa08-b4393a6d13b3"
     uuid_field = s.match_field("id")
-    assert uuid_field.from_solr(solr_data) == uuid.UUID(
-        "12980286-591b-40c6-aa08-b4393a6d13b3")
+    assert uuid_field.from_solr(solr_data) == uuid.UUID("12980286-591b-40c6-aa08-b4393a6d13b3")
