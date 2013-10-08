@@ -217,6 +217,7 @@ You can extract more information from the response than simply the list of resul
 and the results themselves are in the following attributes
 
 * ``response.result`` : the results of your main query.
+* ``response.result.groups`` : see `Result greater`_ below.
 * ``response.facet_counts`` : see `Faceting`_ below.
 * ``response.highlighting`` : see `Highlighting`_ below.
 * ``response.more_like_these`` : see `More Like This`_ below.
@@ -735,6 +736,52 @@ the above as saying '*of the results, 1 of them fulfilled the first facet-query 
 .. note:: Other types of facet
 
  Currently, faceting by date and range are not currently supported (but some of their functionality can be replicated by using ``facet_query()``). Nor are LocalParams or pivot faceting.
+
+Result grouping
+---------------
+
+For background, see http://wiki.apache.org/solr/FieldCollapsing.
+
+Solr 3.3 added support for result grouping such that results can be returned hierarchically grouped by a common field value like so:
+
+::
+
+  major_value: a
+     major_value: a, minor_value: 1
+     major_value: a, minor_value: 2
+     major_value: a, minor_value: 3
+  major_value: b
+     major_value: b, minor_value: 4
+     major_value: b, minor_value: 5
+
+This functionality is particularly useful in retail searching where there are a number of "SKU"s (Red Mens Small, Blue Womens Medium) under a particular "product".
+
+A example call lookes like this:
+
+::
+
+  resp = s.query().group_by('major_value', limit=10).execute()
+
+and get back a list of groupings as resp.result.groups:
+
+::
+
+  for major_value. docs in resp.result.groups:
+    print("major_value: %s, # of docs: %s" % (major_value, len(docs))
+    for doc in docs:
+      print("  major_value: %s, minor_value: %s" % (doc['major_value'], doc['minor_value'])
+
+which yields:
+
+::
+
+  major_value: a, # of docs: 3
+    major_value: a, minor_value: 1
+    major_value: a, minor_value: 2
+    major_value: a, minor_value: 3
+  major_value: b, # of docs: 2
+    major_value: b, minor_value: 4
+    major_value: b, minor_value: 5
 
 
 Highlighting

@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 
-import datetime
 import math
 import operator
 import uuid
@@ -137,7 +136,7 @@ class SolrField(object):
             elif self.name.endswith("*"):
                 self.wildcard_at_start = False
             else:
-                raise SolrError("Dynamic fields must have * at start or end of name (field %s)" % 
+                raise SolrError("Dynamic fields must have * at start or end of name (field %s)" %
                         self.name)
 
     def match(self, name):
@@ -149,7 +148,7 @@ class SolrField(object):
 
     def normalize(self, value):
         """ Normalize the given value according to the field type.
-        
+
         This method does nothing by default, returning the given value
         as is. Child classes may override this method as required.
         """
@@ -188,7 +187,7 @@ class SolrUnicodeField(SolrField):
         try:
             return unicode(value)
         except UnicodeError:
-            raise SolrError("%s could not be coerced to unicode (field %s)" % 
+            raise SolrError("%s could not be coerced to unicode (field %s)" %
                     (value, self.name))
 
 
@@ -203,7 +202,7 @@ class SolrBooleanField(SolrField):
             elif value.lower() == "false":
                 return False
             else:
-                raise ValueError("sorry, I only understand simple boolean strings (field %s)" % 
+                raise ValueError("sorry, I only understand simple boolean strings (field %s)" %
                         self.name)
         return bool(value)
 
@@ -213,7 +212,7 @@ class SolrBinaryField(SolrField):
         try:
             return str(value)
         except (TypeError, ValueError):
-            raise SolrError("Could not convert data to binary string (field %s)" % 
+            raise SolrError("Could not convert data to binary string (field %s)" %
                     self.name)
 
     def to_solr(self, value):
@@ -228,7 +227,7 @@ class SolrNumericalField(SolrField):
         try:
             v = self.base_type(value)
         except (OverflowError, TypeError, ValueError):
-            raise SolrError("%s is invalid value for %s (field %s)" % 
+            raise SolrError("%s is invalid value for %s (field %s)" %
                     (value, self.__class__, self.name))
         if v < self.min or v > self.max:
             raise SolrError("%s out of range for a %s (field %s)" %
@@ -536,6 +535,11 @@ class SolrSchema(object):
             raise SolrError("unexpected field found in result (field name: %s)" % name)
         return name, SolrFieldInstance.from_solr(field_class, doc.text or '').to_user_data()
 
+    def parse_group(self, group, value=None):
+        if value is None:
+            value = group.xpath("str[@name='groupValue']")[0].text
+        return value, [self.parse_result_doc(n) for n in group.xpath("result/doc")]
+
 
 class SolrUpdate(object):
     ADD = E.add
@@ -562,7 +566,7 @@ class SolrUpdate(object):
         if not doc:
             return self.DOC()
         else:
-            # XXX remove all None fields this is needed for adding date fields 
+            # XXX remove all None fields this is needed for adding date fields
             fields = []
             for name, values in doc.items():
                 if values is None:
@@ -654,6 +658,7 @@ class SolrFacetCounts(object):
 
 
 class SolrResponse(object):
+
     @classmethod
     def from_xml(cls, schema, xmlmsg):
         self = cls()
@@ -667,17 +672,21 @@ class SolrResponse(object):
             setattr(self, attr, details['responseHeader'].get(attr))
         if self.status != 0:
             raise ValueError("Response indicates an error")
-        result_node = doc.xpath("/response/result")[0]
-        self.result = SolrResult.from_xml(schema, result_node)
+        result_node_list = doc.xpath("/response/result")
+        group_node_list = doc.xpath("/response/lst[@name='grouped']")
+        if result_node_list:
+            self.result = SolrResult.from_xml(schema, result_node_list[0])
+        else:
+            self.result = SolrResult.from_xml(schema, group_node_list[0])
         self.facet_counts = SolrFacetCounts.from_response(details)
         self.highlighting = dict((k, dict(v))
                                  for k, v in details.get("highlighting", ()))
         more_like_these_nodes = \
             doc.xpath("/response/lst[@name='moreLikeThis']/result")
         more_like_these_results = [SolrResult.from_xml(schema, node)
-                                  for node in more_like_these_nodes]
+                                   for node in more_like_these_nodes]
         self.more_like_these = dict((n.name, n)
-                                         for n in more_like_these_results)
+                                    for n in more_like_these_results)
         if len(self.more_like_these) == 1:
             self.more_like_this = self.more_like_these.values()[0]
         else:
@@ -703,14 +712,28 @@ class SolrResponse(object):
 
 
 class SolrResult(object):
+
     @classmethod
     def from_xml(cls, schema, node):
         self = cls()
+        self.grouped = True if (node.tag == 'lst' and node.attrib['name'] == 'grouped') else False
         self.schema = schema
         self.name = node.attrib['name']
-        self.numFound = int(node.attrib['numFound'])
-        self.start = int(node.attrib['start'])
+        self.numFound = node.xpath("lst/int[@name='matches']")[0].text if self.grouped else int(node.attrib['numFound'])
+
+        if self.grouped:
+            ngroups = node.xpath("lst/int[@name='ngroups']")
+            if ngroups:
+                self.ngroups = int(ngroups[0].text)
+            self.groupField = node.xpath("lst")[0].attrib['name']
+
+        if 'start' in node.attrib:
+            self.start = int(node.attrib['start'])
+        else:
+            start_param = node.xpath("../lst[@name='responseHeader']/lst[@name='params']/str[@name='start']")
+            self.start = start_param[0].text if start_param else 0
         self.docs = [schema.parse_result_doc(n) for n in node.xpath("doc")]
+        self.groups = [schema.parse_group(n) for n in node.xpath("lst/arr[@name='groups']/lst")]
         return self
 
     def __str__(self):
@@ -786,6 +809,8 @@ def value_from_node(node):
         value = float(node.text)
     elif node.tag == 'date':
         value = solr_date(node.text)
+    elif node.tag == 'result':
+        value = [value_from_node(n) for n in node.getchildren()]
     if name is not None:
         return name, value
     else:

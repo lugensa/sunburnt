@@ -15,8 +15,8 @@ except ImportError:
 from sunburnt.schema import SolrSchema, SolrError
 from sunburnt.search import (SolrSearch, MltSolrSearch, PaginateOptions,
                              SortOptions, FieldLimitOptions, FacetOptions,
-                             HighlightOptions, MoreLikeThisOptions,
-                             params_from_dict)
+                             GroupOptions, HighlightOptions,
+                             MoreLikeThisOptions, params_from_dict)
 from sunburnt.strings import RawString
 from sunburnt.sunburnt import SolrInterface
 from .test_sunburnt import MockConnection, MockResponse
@@ -306,6 +306,10 @@ good_option_data = {
         ({"fields": ["int_field", "text_field"], "prefix": "abc", "limit": 3},
          {"facet": True, "facet.field": ["int_field", "text_field"], "f.int_field.facet.prefix": "abc", "f.int_field.facet.limit": 3, "f.text_field.facet.prefix": "abc", "f.text_field.facet.limit": 3, }),
     ),
+    GroupOptions: (
+        ({"field": "int_field", "limit": 10},
+         {"group": True, "group.limit": 10, "group.field": "int_field"}),
+    ),
     SortOptions: (
         ({"field": "int_field"},
          {"sort": "int_field asc"}),
@@ -358,7 +362,8 @@ good_option_data = {
 def check_good_option_data(OptionClass, kwargs, output):
     optioner = OptionClass(schema)
     optioner.update(**kwargs)
-    assert optioner.options() == output
+    assert optioner.options() == output, "Unequal: %r, %r" % (
+        optioner.options(), output)
 
 # All these tests should really nominate which exception they're going to
 # throw.
