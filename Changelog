@@ -4,6 +4,8 @@ Change Log
 0.7 (unreleased)
 ----------------
 
+- Added field_limit_exclude.
+  [jod, phoolish]
 - Added grouping branch.
   [jod, divideby0]
 - Added multiple fq parameters.
