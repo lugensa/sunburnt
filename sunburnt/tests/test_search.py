@@ -61,7 +61,8 @@ schema_string = """
   <uniqueKey>int_field</uniqueKey>
 </schema>"""
 
-schema = SolrSchema(StringIO(schema_string))
+real_schema = SolrSchema(StringIO(schema_string))
+schema = None
 
 
 class MockInterface(object):
@@ -69,7 +70,6 @@ class MockInterface(object):
 
 
 interface = MockInterface()
-
 
 good_query_data = {
     "query_by_term": [
@@ -152,21 +152,13 @@ good_query_data = {
          [("q", u"boolean_field:true")]),
         ([], {"boolean_field": 'true'},
          [("q", u"boolean_field:true")]),
-        ([], {"boolean_field": 1},
-         [("q", u"boolean_field:true")]),
         ([], {"boolean_field": "false"},
-         [("q", u"boolean_field:false")]),
-        ([], {"boolean_field": 0},
          [("q", u"boolean_field:false")]),
         ([], {"boolean_field": False},
          [("q", u"boolean_field:false")]),
         ([], {"int_field": 3},
          [("q", u"int_field:3")]),
-        ([], {"int_field": 3.1},  # casting from float should work
-         [("q", u"int_field:3")]),
         ([], {"sint_field": 3},
-         [("q", u"sint_field:3")]),
-        ([], {"sint_field": 3.1},  # casting from float should work
          [("q", u"sint_field:3")]),
         ([], {"long_field": 2 ** 31},
          [("q", u"long_field:2147483648")]),
@@ -174,19 +166,11 @@ good_query_data = {
          [("q", u"slong_field:2147483648")]),
         ([], {"float_field": 3.0},
          [("q", u"float_field:3.0")]),
-        ([], {"float_field": 3},  # casting from int should work
-         [("q", u"float_field:3.0")]),
         ([], {"sfloat_field": 3.0},
-         [("q", u"sfloat_field:3.0")]),
-        ([], {"sfloat_field": 3},  # casting from int should work
          [("q", u"sfloat_field:3.0")]),
         ([], {"double_field": 3.0},
          [("q", u"double_field:3.0")]),
-        ([], {"double_field": 3},  # casting from int should work
-         [("q", u"double_field:3.0")]),
         ([], {"sdouble_field": 3.0},
-         [("q", u"sdouble_field:3.0")]),
-        ([], {"sdouble_field": 3},  # casting from int should work
          [("q", u"sdouble_field:3.0")]),
         ([], {"date_field": datetime.datetime(2009, 1, 1)},
          [("q", u"date_field:2009\\-01\\-01T00\\:00\\:00Z")]),
@@ -250,36 +234,6 @@ def check_query_data(method, args, kwargs, output):
             raise
         else:
             raise
-
-bad_query_data = (
-    {"int_field": "a"},
-    {"int_field": 2 ** 31},
-    {"int_field": -(2 ** 31) - 1},
-    {"long_field": "a"},
-    {"long_field": 2 ** 63},
-    {"long_field": -(2 ** 63) - 1},
-    {"float_field": "a"},
-    {"float_field": 2 ** 1000},
-    {"float_field": -(2 ** 1000)},
-    {"double_field": "a"},
-    {"double_field": 2 ** 2000},
-    {"double_field": -(2 ** 2000)},
-    {"date_field": "a"},
-    {"int_field__gt": "a"},
-    {"date_field__gt": "a"},
-    {"int_field__range": 1},
-    {"date_field__range": 1},
-)
-
-
-def check_bad_query_data(kwargs):
-    solr_search = SolrSearch(interface)
-    try:
-        solr_search.query(**kwargs).params()
-    except SolrError:
-        pass
-    else:
-        assert False
 
 good_option_data = {
     PaginateOptions: (
@@ -373,24 +327,18 @@ bad_option_data = {
         {"start": None, "rows": -1},  # negative rows
     ),
     FacetOptions: (
-        {"fields": "myarse"},  # Undefined field
         {"oops": True},  # undefined option
         {"limit": "a"},  # invalid type
         {"sort": "yes"},  # invalid choice
         {"offset": -1},  # invalid value
     ),
     SortOptions: (
-        {"field": "myarse"},  # Undefined field
-        {"field": "string_field"},  # Multivalued field
     ),
     HighlightOptions: (
-        {"fields": "myarse"},  # Undefined field
         {"oops": True},  # undefined option
         {"snippets": "a"},  # invalid type
-        {"alternateField": "yourarse"},  # another invalid option
     ),
     MoreLikeThisOptions: (
-        {"fields": "myarse"},  # Undefined field
         # string_field in query_fields, not fields
         {"fields": "text_field", "query_fields":
             {"text_field": 0.25, "string_field": 0.75}},
@@ -485,6 +433,14 @@ complex_boolean_queries = (
      [('q', u'int_field:[* TO *]')]),
     (lambda q: q.query("blah", ~q.Q(int_field__any=True)),
      [('q', u'blah AND NOT int_field:[* TO *]')]),
+    #facet
+    (lambda q: q.query("game").facet_query(price__lt=7).facet_query(price__gte=7),
+     [('facet', 'true'), ('facet.query', 'price:[7 TO *]'),
+      ('facet.query', 'price:{* TO 7}'), ('q', 'game')]),
+    # group
+    (lambda q: q.query().group_by('major_value', limit=10),
+     [('group', 'true'), ('group.field', 'major_value'), ('group.limit', '10'),
+      ('group.ngroups', 'true'), ('q', '*:*')]),
 )
 
 
@@ -666,11 +622,6 @@ def test_query_data():
     for method, data in good_query_data.items():
         for args, kwargs, output in data:
             yield check_query_data, method, args, kwargs, output
-
-
-def test_bad_query_data():
-    for kwargs in bad_query_data:
-        yield check_bad_query_data, kwargs
 
 
 def test_good_option_data():
