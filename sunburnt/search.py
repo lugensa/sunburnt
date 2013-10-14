@@ -90,6 +90,8 @@ class LuceneQuery(object):
                     tmp = [u'%s:%s' % (name, value)
                            for value in value_set]
                 s += tmp
+            else:
+                s += [self.to_query(value) for value in value_set]
         return sorted(s)
 
     def to_solr(self, value):
