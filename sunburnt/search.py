@@ -84,10 +84,12 @@ class LuceneQuery(object):
         s = []
         for name, value_set in terms.items():
             if name:
-                s += [u'%s:%s' % (name, self.to_query(value))
-                      for value in value_set]
-            else:
-                s += [self.to_query(value) for value in value_set]
+                tmp = [u'%s:%s' % (name, self.to_query(value))
+                       for value in value_set]
+                if name == '*':
+                    tmp = [u'%s:%s' % (name, value)
+                           for value in value_set]
+                s += tmp
         return sorted(s)
 
     def to_solr(self, value):

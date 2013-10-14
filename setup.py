@@ -22,7 +22,7 @@ setup(
         'httplib2',
         'lxml',
         'pytz',
-        #'egenix-mx-base',
+        'egenix-mx-base',
         'nose',
         'coverage',
     ],
