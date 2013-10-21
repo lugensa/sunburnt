@@ -104,8 +104,10 @@ class LuceneQuery(object):
         return unicode(value)
 
     def to_query(self, value):
-        ret = sunburnt.strings.RawString(self.to_solr(value)
-                                         ).escape_for_lqs_term()
+        ret = sunburnt.strings.RawString(
+            self.to_solr(value)).escape_for_lqs_term()
+        if isinstance(value, sunburnt.strings.WildcardString):
+            ret = value.escape_for_lqs_term()
         return ret
 
     range_query_templates = {

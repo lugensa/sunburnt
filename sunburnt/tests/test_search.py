@@ -17,7 +17,7 @@ from sunburnt.search import (SolrSearch, MltSolrSearch, PaginateOptions,
                              SortOptions, FieldLimitOptions, FacetOptions,
                              GroupOptions, HighlightOptions,
                              MoreLikeThisOptions, params_from_dict)
-from sunburnt.strings import RawString
+from sunburnt.strings import WildcardString
 from sunburnt.sunburnt import SolrInterface
 from .test_sunburnt import MockConnection, MockResponse
 from nose.tools import assert_equal
@@ -210,7 +210,7 @@ good_query_data = {
         ([], {'string_field': ['hello world', 'goodbye, cruel world']},
          [("q", u"string_field:goodbye,\\ cruel\\ world AND string_field:hello\\ world")]),
         # Raw strings
-        ([], {'string_field': RawString("abc*???")},
+        ([], {'string_field': "abc*???"},
          [("q", "string_field:abc\\*\\?\\?\\?")]),
     ],
 }
@@ -419,6 +419,12 @@ complex_boolean_queries = (
      [('q', u'blah AND (def OR ghi)^1.5')]),
     (lambda q: q.query("blah").query(q.Q("def", ~q.Q("pqr") | q.Q("mno")) ** 1.5),
      [('q', u'blah AND (def AND ((*:* AND NOT pqr) OR mno))^1.5')]),
+    #wildcard
+    (lambda q: q.query("blah").query(q.Q(WildcardString("def*"),
+                                         ~q.Q(miu=WildcardString("pqr*")) | q.Q("mno")) ** 1.5),
+     [('q', 'blah AND (def* AND ((*:* AND NOT miu:pqr*) OR mno))^1.5')]),
+    (lambda q: q.query("blah").query(q.Q("def*", ~q.Q(miu="pqr*") | q.Q("mno")) ** 1.5),
+     [('q', 'blah AND (def\\* AND ((*:* AND NOT miu:pqr\\*) OR mno))^1.5')]),
     # And boost_relevancy
     (lambda q: q.query("blah").boost_relevancy(1.5, int_field=3),
      [('q', u'blah OR (blah AND int_field:3^1.5)')]),
