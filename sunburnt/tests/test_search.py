@@ -1,75 +1,21 @@
-try:
-    from cStringIO import StringIO
-except ImportError:
-    from StringIO import StringIO
-
 import datetime
 
-from lxml.builder import E
 try:
     import mx.DateTime
     HAS_MX_DATETIME = True
 except ImportError:
     HAS_MX_DATETIME = False
 
-from sunburnt.schema import SolrSchema, SolrError
+from sunburnt.schema import SolrError
 from sunburnt.search import (SolrSearch, MltSolrSearch, PaginateOptions,
                              SortOptions, FieldLimitOptions, FacetOptions,
                              GroupOptions, HighlightOptions,
                              MoreLikeThisOptions, params_from_dict)
 from sunburnt.strings import WildcardString
-from sunburnt.sunburnt import SolrInterface
-from .test_sunburnt import MockConnection, MockResponse
 from nose.tools import assert_equal
 
 
 debug = False
-#debug = True
-schema_string = """
-<schema name="timetric" version="1.1">
-  <types>
-    <fieldType name="string" class="solr.StrField" sortMissingLast="true" omitNorms="true"/>
-    <fieldType name="text" class="solr.TextField" sortMissingLast="true" omitNorms="true"/>
-    <fieldType name="boolean" class="solr.BoolField" sortMissingLast="true" omitNorms="true"/>
-    <fieldType name="int" class="solr.IntField" sortMissingLast="true" omitNorms="true"/>
-    <fieldType name="sint" class="solr.SortableIntField" sortMissingLast="true" omitNorms="true"/>
-    <fieldType name="long" class="solr.LongField" sortMissingLast="true" omitNorms="true"/>
-    <fieldType name="slong" class="solr.SortableLongField" sortMissingLast="true" omitNorms="true"/>
-    <fieldType name="float" class="solr.FloatField" sortMissingLast="true" omitNorms="true"/>
-    <fieldType name="sfloat" class="solr.SortableFloatField" sortMissingLast="true" omitNorms="true"/>
-    <fieldType name="double" class="solr.DoubleField" sortMissingLast="true" omitNorms="true"/>
-    <fieldType name="sdouble" class="solr.SortableDoubleField" sortMissingLast="true" omitNorms="true"/>
-    <fieldType name="date" class="solr.DateField" sortMissingLast="true" omitNorms="true"/>
-  </types>
-  <fields>
-    <field name="string_field" required="true" type="string" multiValued="true"/>
-    <field name="text_field" required="true" type="text"/>
-    <field name="boolean_field" required="false" type="boolean"/>
-    <field name="int_field" required="true" type="int"/>
-    <field name="sint_field" type="sint"/>
-    <field name="long_field" type="long"/>
-    <field name="slong_field" type="slong"/>
-    <field name="long_field" type="long"/>
-    <field name="slong_field" type="slong"/>
-    <field name="float_field" type="float"/>
-    <field name="sfloat_field" type="sfloat"/>
-    <field name="double_field" type="double"/>
-    <field name="sdouble_field" type="sdouble"/>
-    <field name="date_field" type="date"/>
-  </fields>
-  <defaultSearchField>text_field</defaultSearchField>
-  <uniqueKey>int_field</uniqueKey>
-</schema>"""
-
-real_schema = SolrSchema(StringIO(schema_string))
-schema = None
-
-
-class MockInterface(object):
-    schema = schema
-
-
-interface = MockInterface()
 
 good_query_data = {
     "query_by_term": [
@@ -89,7 +35,9 @@ good_query_data = {
         (["hello"], {},
          [("q", u"hello")]),
         (["hello"], {"int_field": 3},
-         [("q", u"int_field:3 AND hello")]),  # Non-text data is always taken to be a term, and terms come before phrases, so order is reversed
+         # Non-text data is always taken to be a term, and terms come before
+         # phrases, so order is reversed
+         [("q", u"int_field:3 AND hello")]),
         (["hello", "world"], {},
          [("q", u"hello AND world")]),
         (["hello world"], {},
@@ -221,7 +169,7 @@ if HAS_MX_DATETIME:
 
 
 def check_query_data(method, args, kwargs, output):
-    solr_search = SolrSearch(interface)
+    solr_search = SolrSearch()
     p = getattr(solr_search, method)(*args, **kwargs).params()
     try:
         assert p == output, "Unequal: %r, %r" % (p, output)
@@ -314,7 +262,7 @@ good_option_data = {
 
 
 def check_good_option_data(OptionClass, kwargs, output):
-    optioner = OptionClass(schema)
+    optioner = OptionClass()
     optioner.update(**kwargs)
     assert optioner.options() == output, "Unequal: %r, %r" % (
         optioner.options(), output)
@@ -351,7 +299,7 @@ bad_option_data = {
 
 
 def check_bad_option_data(OptionClass, kwargs):
-    option = OptionClass(schema)
+    option = OptionClass()
     try:
         option.update(**kwargs)
     except SolrError:
@@ -506,122 +454,9 @@ mlt_query_options_data = (
 
 
 def check_mlt_query_options(fields, query_fields, kwargs, output):
-    q = MltSolrSearch(interface, content="This is the posted content.")
+    q = MltSolrSearch(content="This is the posted content.")
     q = q.mlt(fields, query_fields=query_fields, **kwargs)
     assert_equal(q.params(), output)
-
-
-class HighlightingMockResponse(MockResponse):
-
-    def __init__(self, highlighting, *args, **kwargs):
-        self.highlighting = highlighting
-        super(HighlightingMockResponse, self).__init__(*args, **kwargs)
-
-    def extra_response_parts(self):
-        contents = []
-        if self.highlighting:
-            contents.append(
-                E.lst({'name': 'highlighting'}, E.lst(
-                    {'name': '0'}, E.arr({'name': 'string_field'}, E.str('zero'))))
-            )
-        return contents
-
-
-class HighlightingMockConnection(MockConnection):
-
-    def _handle_request(self, uri_obj, params, method, body, headers):
-        highlighting = params.get('hl') == ['true']
-        if method == 'GET' and uri_obj.path.endswith('/select/'):
-            return self.MockStatus(200), HighlightingMockResponse(highlighting, 0, 1).xml_response()
-
-highlighting_interface = SolrInterface(
-    "http://test.example.com/", http_connection=HighlightingMockConnection())
-
-solr_highlights_data = (
-    (None, dict, None),
-    (['string_field'], dict, {'string_field': ['zero']}),
-)
-
-
-def check_transform_results(highlighting, constructor, solr_highlights):
-    q = highlighting_interface.query('zero')
-    if highlighting:
-        q = q.highlight(highlighting)
-    docs = q.execute(constructor=constructor).result.docs
-    assert_equal(docs[0].get('solr_highlights'), solr_highlights)
-    assert isinstance(docs[0], constructor)
-
-# Test More Like This results
-
-
-class MltMockResponse(MockResponse):
-
-    def extra_response_parts(self):
-        contents = []
-        create_doc = lambda value: E.doc(
-            E.str({'name': 'string_field'}, value))
-        # Main response result
-        contents.append(
-            E.result({'name': 'response'},
-                     create_doc('zero')
-                     )
-        )
-        # More like this results
-        contents.append(
-            E.lst({'name': 'moreLikeThis'},
-                  E.result({'name': 'zero', 'numFound': '3', 'start': '0'},
-                           create_doc('one'),
-                           create_doc('two'),
-                           create_doc('three')
-                           )
-                  )
-        )
-        return contents
-
-
-class MltMockConnection(MockConnection):
-
-    def _handle_request(self, uri_obj, params, method, body, headers):
-        if method == 'GET' and uri_obj.path.endswith('/select/'):
-            return self.MockStatus(200), MltMockResponse(0, 1).xml_response()
-
-mlt_interface = SolrInterface("http://test.example.com/",
-                              http_connection=MltMockConnection())
-
-
-class DummyDocument(object):
-
-    def __init__(self, **kw):
-        self.kw = kw
-
-    def __repr__(self):
-        return "DummyDocument<%r>" % self.kw
-
-    def get(self, key):
-        return self.kw.get(key)
-
-
-def make_dummydoc(**kwargs):
-    return DummyDocument(**kwargs)
-
-solr_mlt_transform_data = (
-    (dict, dict),
-    (DummyDocument, DummyDocument),
-    (make_dummydoc, DummyDocument),
-)
-
-
-def check_mlt_transform_results(constructor, _type):
-    q = mlt_interface.query('zero')
-    query = q.mlt(fields='string_field')
-    response = q.execute(constructor=constructor)
-
-    for doc in response.result.docs:
-        assert isinstance(doc, _type)
-
-    for key in response.more_like_these:
-        for doc in response.more_like_these[key].docs:
-            assert isinstance(doc, _type)
 
 
 def test_query_data():
@@ -643,7 +478,7 @@ def test_bad_option_data():
 
 
 def test_complex_boolean_queries():
-    solr_search = SolrSearch(interface)
+    solr_search = SolrSearch()
     for query, output in complex_boolean_queries:
         yield check_complex_boolean_query, solr_search, query, output
 
@@ -656,13 +491,3 @@ def test_url_encode_data():
 def test_mlt_query_options():
     for (fields, query_fields, kwargs, output) in mlt_query_options_data:
         yield check_mlt_query_options, fields, query_fields, kwargs, output
-
-
-def test_transform_result():
-    for highlighting, constructor, solr_highlights in solr_highlights_data:
-        yield check_transform_results, highlighting, constructor, solr_highlights
-
-
-def test_mlt_transform_result():
-    for constructor, _type in solr_mlt_transform_data:
-        yield check_mlt_transform_results, constructor, _type

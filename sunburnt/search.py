@@ -16,9 +16,8 @@ class LuceneQuery(object):
 
     default_term_re = re.compile(r'^\w+$')
 
-    def __init__(self, schema, option_flag=None, original=None,
+    def __init__(self, option_flag=None, original=None,
                  multiple_tags_allowed=False):
-        self.schema = schema
         self.normalized = False
         if original is None:
             self.option_flag = option_flag
@@ -44,7 +43,7 @@ class LuceneQuery(object):
             self.boosts = copy.copy(original.boosts)
 
     def clone(self):
-        return LuceneQuery(self.schema, original=self)
+        return LuceneQuery(original=self)
 
     def options(self):
         opts = {}
@@ -279,7 +278,7 @@ class LuceneQuery(object):
                     subquery_length])
 
     def Q(self, *args, **kwargs):
-        q = LuceneQuery(self.schema)
+        q = LuceneQuery()
         q.add(args, kwargs)
         return q
 
@@ -287,19 +286,19 @@ class LuceneQuery(object):
         return bool(self.terms) or bool(self.phrases) or bool(self.ranges) or bool(self.subqueries)
 
     def __or__(self, other):
-        q = LuceneQuery(self.schema)
+        q = LuceneQuery()
         q._and = False
         q._or = True
         q.subqueries = [self, other]
         return q
 
     def __and__(self, other):
-        q = LuceneQuery(self.schema)
+        q = LuceneQuery()
         q.subqueries = [self, other]
         return q
 
     def __invert__(self):
-        q = LuceneQuery(self.schema)
+        q = LuceneQuery()
         q._and = False
         q._not = True
         q.subqueries = [self]
@@ -310,7 +309,7 @@ class LuceneQuery(object):
             float(value)
         except ValueError:
             raise ValueError("Non-numeric value supplied for boost")
-        q = LuceneQuery(self.schema)
+        q = LuceneQuery()
         q.subqueries = [self]
         q._and = False
         q._pow = value
@@ -396,22 +395,22 @@ class BaseSearch(object):
     result_constructor = dict
 
     def _init_common_modules(self):
-        self.query_obj = LuceneQuery(self.schema, u'q')
-        self.filter_obj = LuceneQuery(self.schema, u'fq',
+        self.query_obj = LuceneQuery(u'q')
+        self.filter_obj = LuceneQuery(u'fq',
                                       multiple_tags_allowed=True)
-        self.paginator = PaginateOptions(self.schema)
-        self.highlighter = HighlightOptions(self.schema)
-        self.faceter = FacetOptions(self.schema)
-        self.grouper = GroupOptions(self.schema)
-        self.sorter = SortOptions(self.schema)
-        self.field_limiter = FieldLimitOptions(self.schema)
-        self.facet_querier = FacetQueryOptions(self.schema)
+        self.paginator = PaginateOptions()
+        self.highlighter = HighlightOptions()
+        self.faceter = FacetOptions()
+        self.grouper = GroupOptions()
+        self.sorter = SortOptions()
+        self.field_limiter = FieldLimitOptions()
+        self.facet_querier = FacetQueryOptions()
 
     def clone(self):
-        return self.__class__(interface=self.interface, original=self)
+        return self.__class__(original=self)
 
     def Q(self, *args, **kwargs):
-        q = LuceneQuery(self.schema)
+        q = LuceneQuery()
         q.add(args, kwargs)
         return q
 
@@ -502,13 +501,13 @@ class BaseSearch(object):
         newself.field_limiter.update(fields, score, all_fields)
         return newself
 
-    def field_limit_exclude(self, exclude=None, score=False, all_fields=False):
+    def field_limit_exclude(self, exclude=None, score=False, all_fields=False,
+                            default_fields=[]):
         newself = self.clone()
         if exclude is None:
             exclude = []
         if isinstance(exclude, basestring):
             exclude = [exclude]
-        default_fields = [f for f in self.schema.fields]
         fields = list(set(default_fields) - set(exclude))
         newself.field_limiter.update(fields, score, all_fields)
         return newself
@@ -524,19 +523,6 @@ class BaseSearch(object):
         newself = self.clone()
         newself.result_constructor = constructor
         return newself
-
-    def transform_result(self, result, constructor):
-        if constructor is not dict:
-            construct_docs = lambda docs: [constructor(**d) for d in docs]
-            result.result.docs = construct_docs(result.result.docs)
-            for key in result.more_like_these:
-                result.more_like_these[key].docs = \
-                    construct_docs(result.more_like_these[key].docs)
-            # in future, highlighting chould be made available to
-            # custom constructors; perhaps document additional
-            # arguments result constructors are required to support, or check for
-            # an optional set_highlighting method
-        return result
 
     def params(self):
         return params_from_dict(**self.options())
@@ -633,11 +619,9 @@ class BaseSearch(object):
 
 class SolrSearch(BaseSearch):
 
-    def __init__(self, interface, original=None):
-        self.interface = interface
-        self.schema = interface.schema
+    def __init__(self, original=None):
         if original is None:
-            self.more_like_this = MoreLikeThisOptions(self.schema)
+            self.more_like_this = MoreLikeThisOptions()
             self._init_common_modules()
         else:
             for opt in self.option_modules:
@@ -650,12 +634,6 @@ class SolrSearch(BaseSearch):
             options['q'] = '*:*'  # search everything
         return options
 
-    def execute(self, constructor=None):
-        if constructor is None:
-            constructor = self.result_constructor
-        result = self.interface.search(**self.options())
-        return self.transform_result(result, constructor)
-
 
 class MltSolrSearch(BaseSearch):
 
@@ -663,10 +641,8 @@ class MltSolrSearch(BaseSearch):
     trivial_encodings = [
         "utf_8", "u8", "utf", "utf8", "ascii", "646", "us_ascii"]
 
-    def __init__(self, interface, content=None, content_charset=None, url=None,
+    def __init__(self, content=None, content_charset=None, url=None,
                  original=None):
-        self.interface = interface
-        self.schema = interface.schema
         if original is None:
             if content is not None and url is not None:
                 raise ValueError(
@@ -680,7 +656,7 @@ class MltSolrSearch(BaseSearch):
                     content = content.decode(content_charset).encode('utf-8')
             self.content = content
             self.url = url
-            self.more_like_this = MoreLikeThisHandlerOptions(self.schema)
+            self.more_like_this = MoreLikeThisHandlerOptions()
             self._init_common_modules()
         else:
             self.content = original.content
@@ -730,16 +706,11 @@ class MltSolrSearch(BaseSearch):
             options['stream.url'] = self.url
         return options
 
-    def execute(self, constructor=dict):
-        result = self.interface.mlt_search(
-            content=self.content, **self.options())
-        return self.transform_result(result, constructor)
-
 
 class Options(object):
 
     def clone(self):
-        return self.__class__(self.schema, self)
+        return self.__class__(self)
 
     def invalid_value(self, msg=""):
         assert False, msg
@@ -806,8 +777,7 @@ class FacetOptions(Options):
             "enum.cache.minDf": int,
             }
 
-    def __init__(self, schema, original=None):
-        self.schema = schema
+    def __init__(self, original=None):
         if original is None:
             self.fields = collections.defaultdict(dict)
         else:
@@ -827,8 +797,7 @@ class GroupOptions(Options):
         "ngroups": bool
     }
 
-    def __init__(self, schema, original=None):
-        self.schema = schema
+    def __init__(self, original=None):
         if original is None:
             self.fields = collections.defaultdict(dict)
         else:
@@ -860,8 +829,7 @@ class HighlightOptions(Options):
             "regex.maxAnalyzedChars": int
             }
 
-    def __init__(self, schema, original=None):
-        self.schema = schema
+    def __init__(self, original=None):
         if original is None:
             self.fields = collections.defaultdict(dict)
         else:
@@ -884,8 +852,7 @@ class MoreLikeThisOptions(Options):
             "boost": bool,
             }
 
-    def __init__(self, schema, original=None):
-        self.schema = schema
+    def __init__(self, original=None):
         if original is None:
             self.fields = set()
             self.query_fields = {}
@@ -970,8 +937,7 @@ class MoreLikeThisHandlerOptions(MoreLikeThisOptions):
 
 class PaginateOptions(Options):
 
-    def __init__(self, schema, original=None):
-        self.schema = schema
+    def __init__(self, original=None):
         if original is None:
             self.start = None
             self.rows = None
@@ -1001,8 +967,7 @@ class PaginateOptions(Options):
 class SortOptions(Options):
     option_name = "sort"
 
-    def __init__(self, schema, original=None):
-        self.schema = schema
+    def __init__(self, original=None):
         if original is None:
             self.fields = []
         else:
@@ -1030,8 +995,7 @@ class SortOptions(Options):
 class FieldLimitOptions(Options):
     option_name = "fl"
 
-    def __init__(self, schema, original=None):
-        self.schema = schema
+    def __init__(self, original=None):
         if original is None:
             self.fields = set()
             self.score = False
@@ -1065,8 +1029,7 @@ class FieldLimitOptions(Options):
 
 class FacetQueryOptions(Options):
 
-    def __init__(self, schema, original=None):
-        self.schema = schema
+    def __init__(self, original=None):
         if original is None:
             self.queries = []
         else:
