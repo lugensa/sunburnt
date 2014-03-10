@@ -9,8 +9,9 @@ except ImportError:
 from sunburnt.schema import SolrError
 from sunburnt.search import (SolrSearch, MltSolrSearch, PaginateOptions,
                              SortOptions, FieldLimitOptions, FacetOptions,
-                             GroupOptions, HighlightOptions,
-                             MoreLikeThisOptions, params_from_dict)
+                             GroupOptions, HighlightOptions, DismaxOptions,
+                             MoreLikeThisOptions, EdismaxOptions,
+                             params_from_dict)
 from sunburnt.strings import WildcardString
 from nose.tools import assert_equal
 
@@ -245,6 +246,22 @@ good_option_data = {
         ({"fields": "text_field", "count": 1},
          {"mlt": True, "mlt.fl": "text_field", "mlt.count": 1}),
     ),
+    DismaxOptions: (
+        ({"qf": {"text_field": 0.25, "string_field": 0.75}},
+         {'defType': 'dismax', 'qf': 'text_field^0.25 string_field^0.75'}),
+        ({"pf": {"text_field": 0.25, "string_field": 0.75}},
+         {'defType': 'dismax', 'pf': 'text_field^0.25 string_field^0.75'}),
+        ({"qf": {"text_field": 0.25, "string_field": 0.75}, "mm": 2},
+         {'mm': 2, 'defType': 'dismax', 'qf': 'text_field^0.25 string_field^0.75'}),
+    ),
+    EdismaxOptions: (
+        ({"qf": {"text_field": 0.25, "string_field": 0.75}},
+         {'defType': 'edismax', 'qf': 'text_field^0.25 string_field^0.75'}),
+        ({"pf": {"text_field": 0.25, "string_field": 0.75}},
+         {'defType': 'edismax', 'pf': 'text_field^0.25 string_field^0.75'}),
+        ({"qf": {"text_field": 0.25, "string_field": 0.75}, "mm": 2},
+         {'mm': 2, 'defType': 'edismax', 'qf': 'text_field^0.25 string_field^0.75'}),
+    ),
     FieldLimitOptions: (
         ({},
          {}),
@@ -295,6 +312,12 @@ bad_option_data = {
         {"fields": "text_field", "query_fields": {"text_field": "a"}},
         {"fields": "text_field", "oops": True},  # undefined option
         {"fields": "text_field", "count": "a"}  # Invalid value for option
+    ),
+    DismaxOptions: (
+        # no ss
+        {"ss": {"text_field": 0.25, "string_field": 0.75}},
+        # no float in pf
+        {"pf": {"text_field": 0.25, "string_field": "ABBS"}},
     ),
 }
 
@@ -402,6 +425,14 @@ complex_boolean_queries = (
     # sort
     (lambda q: q.query("hello world").filter(q.Q(text_field="tow")).sort_by('title'),
      [('fq', 'text_field:tow'), ('q', 'hello\\ world'), ('sort', 'title asc')]),
+    # dismax
+    (lambda q: q.query("hello").filter(q.Q(text_field="tow")).alt_parser(
+        "dismax", qf={"text_field": 0.25, "string_field": 0.75}),
+     [('defType', 'dismax'), ('fq', 'text_field:tow'), ('q', 'hello'), ('qf', 'text_field^0.25 string_field^0.75')]),
+    # edismax
+    (lambda q: q.query("hello").filter(q.Q(text_field="tow")).alt_parser(
+        "edismax", qf={"text_field": 0.25, "string_field": 0.75}),
+     [('defType', 'edismax'), ('fq', 'text_field:tow'), ('q', 'hello'), ('qf', 'text_field^0.25 string_field^0.75')]),
 )
 
 

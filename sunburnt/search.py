@@ -14,6 +14,8 @@ import sunburnt.strings
 from sunburnt.schema import solr_date
 from sunburnt.exc import SolrError
 
+PARSERS = ("edismax", "dismax")
+
 
 class LuceneQuery(object):
 
@@ -369,7 +371,8 @@ class BaseSearch(object):
     """Base class for common search options management"""
     option_modules = ('query_obj', 'filter_obj', 'paginator',
                       'more_like_this', 'highlighter', 'faceter',
-                      'grouper', 'sorter', 'facet_querier', 'field_limiter',)
+                      'grouper', 'sorter', 'facet_querier', 'field_limiter',
+                      'parser')
 
     result_constructor = dict
 
@@ -465,6 +468,18 @@ class BaseSearch(object):
         newself.more_like_this.update(fields, query_fields, **kwargs)
         return newself
 
+    def alt_parser(self, parser, **kwargs):
+        if parser not in PARSERS:
+            raise SolrError("Parser (%s) is not supported choose between (%s)"
+                            % (parser, PARSERS))
+        newself = self.clone()
+        if parser == 'dismax':
+            newself.parser = DismaxOptions()
+        elif parser == 'edismax':
+            newself.parser = EdismaxOptions()
+        newself.parser.update(**kwargs)
+        return newself
+
     def paginate(self, start=None, rows=None):
         newself = self.clone()
         newself.paginator.update(start, rows)
@@ -494,7 +509,9 @@ class BaseSearch(object):
     def options(self):
         options = {}
         for option_module in self.option_modules:
-            options.update(getattr(self, option_module).options())
+            if hasattr(self, option_module):
+                _attr = getattr(self, option_module)
+                options.update(_attr.options())
         # Next line is for pre-2.6.5 python
         return dict((k.encode('utf8'), v) for k, v in options.items())
 
@@ -515,7 +532,9 @@ class SolrSearch(BaseSearch):
             self._init_common_modules()
         else:
             for opt in self.option_modules:
-                setattr(self, opt, getattr(original, opt).clone())
+                if hasattr(original, opt):
+                    _attr = getattr(original, opt)
+                    setattr(self, opt, _attr.clone())
             self.result_constructor = original.result_constructor
 
     def options(self):
@@ -552,7 +571,9 @@ class MltSolrSearch(BaseSearch):
             self.content = original.content
             self.url = original.url
             for opt in self.option_modules:
-                setattr(self, opt, getattr(original, opt).clone())
+                if hasattr(original, opt):
+                    _attr = getattr(original, opt)
+                    setattr(self, opt, _attr.clone())
 
     def query(self, *args, **kwargs):
         if self.content is not None or self.url is not None:
@@ -697,6 +718,61 @@ class GroupOptions(Options):
     def field_names_in_opts(self, opts, fields):
         if fields:
             opts["facet.field"] = sorted(fields)
+
+
+class DismaxOptions(Options):
+    _name = "dismax"
+    option_name = "defType"
+    opts = {
+        "qf": dict,
+        "mm": int,
+        "pf": dict,
+        "ps": int,
+        "qs": int,
+        "tie": float,
+        "bq": unicode,
+        "bf": unicode,
+    }
+
+    def __init__(self, original=None):
+        if original is None:
+            self.kwargs = {}
+        else:
+            self.kwargs = original.kwargs.copy()
+
+    def update(self, **kwargs):
+        checked_kwargs = self.check_opts(kwargs)
+        for f in ('qf', 'pf'):
+            field = kwargs.get(f, {})
+            for k, v in field.items():
+                if v is not None:
+                    try:
+                        v = float(v)
+                    except ValueError:
+                        raise SolrError(
+                            "'%s' has non-numerical boost value" % k)
+        self.kwargs.update(checked_kwargs)
+
+    def options(self):
+        opts = {}
+        opts[self.option_name] = self._name
+        for opt_name, opt_value in self.kwargs.items():
+            opt_type = self.opts[opt_name]
+            opts[opt_name] = opt_type(opt_value)
+
+            if opt_name in ("qf", "pf"):
+                qf_arg = []
+                for k, v in opt_value.items():
+                    if v is None:
+                        qf_arg.append(k)
+                    else:
+                        qf_arg.append("%s^%s" % (k, float(v)))
+                opts[opt_name] = " ".join(qf_arg)
+        return opts
+
+
+class EdismaxOptions(DismaxOptions):
+    _name = "edismax"
 
 
 class HighlightOptions(Options):
