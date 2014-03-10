@@ -17,7 +17,7 @@ from nose.tools import assert_equal
 
 debug = False
 
-good_query_data = {
+base_good_query_data = {
     "query_by_term": [
         (["hello"], {},
          [("q", u"hello")]),
@@ -44,44 +44,6 @@ good_query_data = {
          [("q", u"hello\\ world")]),
         ([], {'string_field': ['hello world', 'goodbye, cruel world']},
          [("q", u"string_field:goodbye,\\ cruel\\ world AND string_field:hello\\ world")]),
-    ],
-
-    "filter_by_term": [
-        (["hello"], {},
-         [("fq", u"hello"), ("q", "*:*")]),
-        #test multiple fq
-        (["hello"], {"int_field":3},
-         [("fq", u"hello"), ("fq", u"int_field:3"), ("q", "*:*")]),
-        (["hello", "world"], {},
-         [("fq", u"hello"), ("fq", u"world"), ("q", "*:*")]),
-        # NB this next is not really what we want,
-        # probably this should warn
-        (["hello world"], {},
-         [("fq", u"hello\\ world"), ("q", "*:*")]),
-    ],
-
-    "filter_by_phrase": [
-        (["hello"], {},
-         [("fq", u"hello"), ("q", "*:*")]),
-        #test multiple fq
-        (["hello"], {"int_field":3},
-         [("fq", u"hello"), ("fq", u"int_field:3"), ("q", "*:*")]),
-        (["hello", "world"], {},
-         [("fq", u"hello"), ("fq", u"world"), ("q", "*:*")]),
-        (["hello world"], {},
-         [("fq", u"hello\\ world"), ("q", "*:*")]),
-    ],
-
-    "filter": [
-        (["hello"], {},
-         [("fq", u"hello"), ("q", "*:*")]),
-        #test multiple fq
-        (["hello"], {"int_field":3},
-         [("fq", u"hello"), ("fq", "int_field:3"), ("q", "*:*")]),
-        (["hello", "world"], {},
-         [("fq", u"hello"), ("fq", u"world"), ("q", "*:*")]),
-        (["hello world"], {},
-         [("fq", u"hello\\ world"), ("q", "*:*")]),
     ],
 
     "query": [
@@ -162,6 +124,48 @@ good_query_data = {
          [("q", "string_field:abc\\*\\?\\?\\?")]),
     ],
 }
+
+good_query_data = {
+    "filter_by_term": [
+        (["hello"], {},
+         [("fq", u"hello"), ("q", "*:*")]),
+        #test multiple fq
+        (["hello"], {"int_field":3},
+         [("fq", u"hello"), ("fq", u"int_field:3"), ("q", "*:*")]),
+        (["hello", "world"], {},
+         [("fq", u"hello"), ("fq", u"world"), ("q", "*:*")]),
+        # NB this next is not really what we want,
+        # probably this should warn
+        (["hello world"], {},
+         [("fq", u"hello\\ world"), ("q", "*:*")]),
+    ],
+
+    "filter_by_phrase": [
+        (["hello"], {},
+         [("fq", u"hello"), ("q", "*:*")]),
+        #test multiple fq
+        (["hello"], {"int_field":3},
+         [("fq", u"hello"), ("fq", u"int_field:3"), ("q", "*:*")]),
+        (["hello", "world"], {},
+         [("fq", u"hello"), ("fq", u"world"), ("q", "*:*")]),
+        (["hello world"], {},
+         [("fq", u"hello\\ world"), ("q", "*:*")]),
+    ],
+
+    "filter": [
+        (["hello"], {},
+         [("fq", u"hello"), ("q", "*:*")]),
+        #test multiple fq
+        (["hello"], {"int_field":3},
+         [("fq", u"hello"), ("fq", "int_field:3"), ("q", "*:*")]),
+        (["hello", "world"], {},
+         [("fq", u"hello"), ("fq", u"world"), ("q", "*:*")]),
+        (["hello world"], {},
+         [("fq", u"hello\\ world"), ("q", "*:*")]),
+    ],
+}
+good_query_data.update(base_good_query_data)
+
 if HAS_MX_DATETIME:
     good_query_data['query'].append(
         ([], {"date_field": mx.DateTime.DateTime(2009, 1, 1)},
@@ -171,17 +175,14 @@ if HAS_MX_DATETIME:
 def check_query_data(method, args, kwargs, output):
     solr_search = SolrSearch()
     p = getattr(solr_search, method)(*args, **kwargs).params()
-    try:
-        assert p == output, "Unequal: %r, %r" % (p, output)
-    except AssertionError:
-        if debug:
-            print p
-            print output
-            import ipdb
-            ipdb.set_trace()
-            raise
-        else:
-            raise
+    assert p == output, "Unequal: %r, %r" % (p, output)
+
+
+def check_mlt_query_data(method, args, kwargs, output):
+    solr_search = MltSolrSearch()
+    p = getattr(solr_search, method)(*args, **kwargs).params()
+    assert p == output, "Unequal: %r, %r" % (p, output)
+
 
 good_option_data = {
     PaginateOptions: (
@@ -395,6 +396,12 @@ complex_boolean_queries = (
     (lambda q: q.query().group_by('major_value', limit=10),
      [('group', 'true'), ('group.field', 'major_value'), ('group.limit', '10'),
       ('group.ngroups', 'true'), ('q', '*:*')]),
+    # highlight
+    (lambda q: q.query("hello world").filter(q.Q(text_field="tow")).highlight('title'),
+     [('fq', 'text_field:tow'), ('hl', 'true'), ('hl.fl', 'title'), ('q', 'hello\\ world')]),
+    # sort
+    (lambda q: q.query("hello world").filter(q.Q(text_field="tow")).sort_by('title'),
+     [('fq', 'text_field:tow'), ('q', 'hello\\ world'), ('sort', 'title asc')]),
 )
 
 
@@ -463,6 +470,12 @@ def test_query_data():
     for method, data in good_query_data.items():
         for args, kwargs, output in data:
             yield check_query_data, method, args, kwargs, output
+
+
+def test_mlt_query_data():
+    for method, data in base_good_query_data.items():
+        for args, kwargs, output in data:
+            yield check_mlt_query_data, method, args, kwargs, output
 
 
 def test_good_option_data():

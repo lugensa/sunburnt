@@ -55,31 +55,6 @@ class LuceneQuery(object):
             opts[self.option_flag] = s
         return opts
 
-    def serialize_debug(self, indent=0):
-        indentspace = indent * ' '
-        print '%s%s (%s)' % (indentspace, repr(self), "Normalized" if self.normalized else "Not normalized")
-        print '%s%s' % (indentspace, '{')
-        for term in self.terms.items():
-            print '%s%s' % (indentspace, term)
-        for phrase in self.phrases.items():
-            print '%s%s' % (indentspace, phrase)
-        for range in self.ranges:
-            print '%s%s' % (indentspace, range)
-        if self.subqueries:
-            if self._and:
-                print '%sAND:' % indentspace
-            elif self._or:
-                print '%sOR:' % indentspace
-            elif self._not:
-                print '%sNOT:' % indentspace
-            elif self._pow is not False:
-                print '%sPOW %s:' % (indentspace, self._pow)
-            else:
-                raise ValueError
-            for subquery in self.subqueries:
-                subquery.serialize_debug(indent + 2)
-        print '%s%s' % (indentspace, '}')
-
     # Below, we sort all our value_sets - this is for predictability when
     # testing.
     def serialize_term_queries(self, terms):
@@ -531,95 +506,6 @@ class BaseSearch(object):
     def params(self):
         return params_from_dict(**self.options())
 
-    # methods to allow SolrSearch to be used with Django paginator ##
-
-    _count = None
-
-    def count(self):
-        # get the total count for the current query without retrieving any results
-        # cache it, since it may be needed multiple times when used with django
-        # paginator
-        if self._count is None:
-            # are we already paginated? then we'll behave as if that's
-            # defined our result set already.
-            if self.paginator.rows is not None:
-                total_results = self.paginator.rows
-            else:
-                response = self.paginate(rows=0).execute()
-                total_results = response.result.numFound
-                if self.paginator.start is not None:
-                    total_results -= self.paginator.start
-            self._count = total_results
-        return self._count
-
-    __len__ = count
-
-    def __getitem__(self, k):
-        """Return a single result or slice of results from the query.
-        """
-        # are we already paginated? if so, we'll apply this getitem to the
-        # paginated result - else we'll apply it to the whole.
-        offset = 0 if self.paginator.start is None else self.paginator.start
-
-        if isinstance(k, slice):
-            # calculate solr pagination options for the requested slice
-            step = operator.index(k.step) if k.step is not None else 1
-            if step == 0:
-                raise ValueError("slice step cannot be zero")
-            if step > 0:
-                s1 = k.start
-                s2 = k.stop
-                inc = 0
-            else:
-                s1 = k.stop
-                s2 = k.start
-                inc = 1
-
-            if s1 is not None:
-                start = operator.index(s1)
-                if start < 0:
-                    start += self.count()
-                    start = max(0, start)
-                start += inc
-            else:
-                start = 0
-            if s2 is not None:
-                stop = operator.index(s2)
-                if stop < 0:
-                    stop += self.count()
-                    stop = max(0, stop)
-                stop += inc
-            else:
-                stop = self.count()
-
-            rows = stop - start
-            if self.paginator.rows is not None:
-                rows = min(rows, self.paginator.rows)
-            rows = max(rows, 0)
-
-            start += offset
-
-            response = self.paginate(start=start, rows=rows).execute()
-            if step != 1:
-                response.result.docs = response.result.docs[::step]
-            return response
-
-        else:
-            # if not a slice, a single result is being requested
-            k = operator.index(k)
-            if k < 0:
-                k += self.count()
-                if k < 0:
-                    raise IndexError("list index out of range")
-
-            # Otherwise do the query anyway, don't count() to avoid extra Solr
-            # call
-            k += offset
-            response = self.paginate(start=k, rows=1).execute()
-            if response.result.numFound < k:
-                raise IndexError("list index out of range")
-            return response.result.docs[0]
-
 
 class SolrSearch(BaseSearch):
 
@@ -748,7 +634,8 @@ class Options(object):
                     v = opt_type(self, v)
             except:
                 raise SolrError(
-                    "Invalid value for %s option %s: %s" % (self.option_name, k, v))
+                    "Invalid value for %s option %s: %s" % (self.option_name,
+                                                            k, v))
             checked_kwargs[k] = v
         return checked_kwargs
 

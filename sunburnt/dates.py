@@ -1,16 +1,13 @@
 import datetime
 import math
 import re
-import warnings
 import pytz
 
 try:
     import mx.DateTime
+    HAS_MX_DATETIME = True
 except ImportError:
-    warnings.warn(
-        "mx.DateTime not found, retricted to Python datetime objects",
-        ImportWarning)
-    mx = None
+    HAS_MX_DATETIME = False
 
 
 year = r'[+/-]?\d+'
@@ -71,7 +68,7 @@ class DateTimeRangeError(ValueError):
     pass
 
 
-if mx:
+if HAS_MX_DATETIME:
     def datetime_factory(**kwargs):
         try:
             return mx.DateTime.DateTimeFrom(**kwargs)
@@ -89,7 +86,7 @@ else:
         except ValueError, e:
             raise DateTimeRangeError(e.args[0])
 
-if mx:
+if HAS_MX_DATETIME:
     def datetime_delta_factory(hours, minutes):
         return mx.DateTime.DateTimeDelta(0, hours, minutes)
 else:
