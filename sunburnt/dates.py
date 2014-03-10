@@ -1,6 +1,7 @@
-from __future__ import absolute_import
-
-import datetime, math, re, warnings
+import datetime
+import math
+import re
+import warnings
 import pytz
 
 try:
@@ -14,21 +15,23 @@ except ImportError:
 
 year = r'[+/-]?\d+'
 tzd = r'Z|((?P<tzd_sign>[-+])(?P<tzd_hour>\d\d):(?P<tzd_minute>\d\d))'
-extended_iso_template = r'(?P<year>'+year+r""")
+extended_iso_template = r'(?P<year>' + year + r""")
                (-(?P<month>\d\d)
                (-(?P<day>\d\d)
             ([T%s](?P<hour>\d\d)
                 :(?P<minute>\d\d)
                (:(?P<second>\d\d)
                (.(?P<fraction>\d+))?)?
-               ("""+tzd+""")?)?
+               (""" + tzd + """)?)?
                )?)?"""
 extended_iso = extended_iso_template % " "
-extended_iso_re = re.compile('^'+extended_iso+'$', re.X)
+extended_iso_re = re.compile('^' + extended_iso + '$', re.X)
+
 
 def datetime_from_w3_datestring(s):
     """ We need to extend ISO syntax (as permitted by the standard) to allow
-    for dates before 0AD and after 9999AD. This is how to parse such a string"""
+    for dates before 0AD and after 9999AD. This is how to parse such a string
+    """
     m = extended_iso_re.match(s)
     if not m:
         raise ValueError
@@ -47,9 +50,9 @@ def datetime_from_w3_datestring(s):
         elif d['tzd_sign'] == '-':
             tzd_sign = -1
         try:
-            tz_delta = datetime_delta_factory(tzd_sign*int(d['tzd_hour']),
-                                              tzd_sign*int(d['tzd_minute']))
-        except DateTimeRangeError:
+            tz_delta = datetime_delta_factory(tzd_sign * int(d['tzd_hour']),
+                                              tzd_sign * int(d['tzd_minute']))
+        except DateTimeRangeError as e:
             raise ValueError(e.args[0])
     else:
         tz_delta = datetime_delta_factory(0, 0)
@@ -66,13 +69,13 @@ def datetime_from_w3_datestring(s):
 
 class DateTimeRangeError(ValueError):
     pass
-    
+
 
 if mx:
     def datetime_factory(**kwargs):
         try:
             return mx.DateTime.DateTimeFrom(**kwargs)
-        except mx.DateTime.RangeError:
+        except mx.DateTime.RangeError as e:
             raise DateTimeRangeError(e.args[0])
 else:
     def datetime_factory(**kwargs):

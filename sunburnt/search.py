@@ -1,15 +1,18 @@
-from __future__ import absolute_import
 import datetime
-
 import collections
 import copy
 import operator
 import re
-import mx.DateTime
+try:
+    import mx.DateTime
+    HAS_MX_DATETIME = True
+except ImportError:
+    HAS_MX_DATETIME = False
 import numbers
-
-from .schema import (SolrError, solr_date)
 import sunburnt.strings
+
+from sunburnt.schema import solr_date
+from sunburnt.exc import SolrError
 
 
 class LuceneQuery(object):
@@ -96,8 +99,9 @@ class LuceneQuery(object):
     def to_solr(self, value):
         if isinstance(value, bool):
             return u"true" if value else u"false"
-        if isinstance(value, mx.DateTime.DateTimeType):
-            return unicode(solr_date(value))
+        if HAS_MX_DATETIME:
+            if isinstance(value, mx.DateTime.DateTimeType):
+                return unicode(solr_date(value))
         if isinstance(value, datetime.datetime):
             return unicode(solr_date(value))
         return unicode(value)
