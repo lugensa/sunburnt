@@ -11,7 +11,7 @@ except ImportError:
 import numbers
 import sunburnt.strings
 
-from sunburnt.schema import solr_date
+from sunburnt.dates import solr_date
 from sunburnt.exc import SolrError
 
 PARSERS = ("edismax", "dismax")
@@ -374,8 +374,6 @@ class BaseSearch(object):
                       'grouper', 'sorter', 'facet_querier', 'field_limiter',
                       'parser')
 
-    result_constructor = dict
-
     def _init_common_modules(self):
         self.query_obj = LuceneQuery(u'q')
         self.filter_obj = LuceneQuery(u'fq',
@@ -517,7 +515,6 @@ class BaseSearch(object):
 
     def results_as(self, constructor):
         newself = self.clone()
-        newself.result_constructor = constructor
         return newself
 
     def params(self):
@@ -535,7 +532,6 @@ class SolrSearch(BaseSearch):
                 if hasattr(original, opt):
                     _attr = getattr(original, opt)
                     setattr(self, opt, _attr.clone())
-            self.result_constructor = original.result_constructor
 
     def options(self):
         options = super(SolrSearch, self).options()
