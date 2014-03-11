@@ -6,7 +6,7 @@ try:
 except ImportError:
     HAS_MX_DATETIME = False
 
-from sunburnt.schema import SolrError
+from sunburnt.exc import SolrError
 from sunburnt.search import (SolrSearch, MltSolrSearch, PaginateOptions,
                              SortOptions, FieldLimitOptions, FacetOptions,
                              GroupOptions, HighlightOptions, DismaxOptions,
