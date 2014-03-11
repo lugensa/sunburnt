@@ -168,6 +168,8 @@ class SolrInterface(object):
         self.conn = SolrConnection(
             url, http_connection, mode, retry_timeout, max_length_get_url)
         self.schema = self.init_schema()
+        # we need tuples for endswith
+        self._datefields = tuple(self._extract_datefields(self.schema))
 
     def init_schema(self):
         response = self.conn.request(
@@ -179,18 +181,17 @@ class SolrInterface(object):
             )
         return response.json()['schema']
 
-    @property
-    def _datefields(self):
+    def _extract_datefields(self, schema):
         ret = [x for x in
-               self.schema['fields'] if x['type'] == 'date']
-        ret.extend([x for x in self.schema['dynamicFields']
+               schema['fields'] if x['type'] == 'date']
+        ret.extend([x for x in schema['dynamicFields']
                     if x['type'] == 'date'])
         if ret:
             ret = [x['name'] for x in ret]
             ret = [x.replace('*', '') for x in ret]
         return ret
 
-    def _prepare_add(self, docs):
+    def _prepare_docs(self, docs):
         for doc in docs:
             for name, value in doc.items():
                 # XXX remove all None fields this is needed for adding date
@@ -200,7 +201,7 @@ class SolrInterface(object):
                     continue
                 if name in self._datefields:
                     doc[name] = unicode(sunburnt.dates.solr_date(value))
-                if name.endswith(tuple(self._datefields)):
+                elif name.endswith(self._datefields):
                     doc[name] = unicode(sunburnt.dates.solr_date(value))
         return docs
 
@@ -210,7 +211,7 @@ class SolrInterface(object):
         # to avoid making messages too large, we break the message every
         # chunk docs.
         for doc_chunk in grouper(docs, chunk):
-            update_message = json.dumps(self._prepare_add(doc_chunk))
+            update_message = json.dumps(self._prepare_docs(doc_chunk))
             self.conn.update(update_message, **kwargs)
 
     def delete_by_query(self, query, **kwargs):
