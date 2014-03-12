@@ -1,1 +1,3 @@
-__version__ = '0.7.dev0'
+from sunburnt.connection import SolrInterface
+
+__all__ = ['SolrInterface']

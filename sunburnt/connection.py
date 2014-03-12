@@ -242,7 +242,7 @@ class SolrInterface(object):
         return ret
 
     def query(self, *args, **kwargs):
-        q = SolrSearch()
+        q = SolrSearch(self)
         if len(args) + len(kwargs) > 0:
             return q.query(*args, **kwargs)
         else:

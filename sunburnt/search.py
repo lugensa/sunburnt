@@ -387,7 +387,7 @@ class BaseSearch(object):
         self.facet_querier = FacetQueryOptions()
 
     def clone(self):
-        return self.__class__(original=self)
+        return self.__class__(interface=self.interface, original=self)
 
     def Q(self, *args, **kwargs):
         q = LuceneQuery()
@@ -523,7 +523,8 @@ class BaseSearch(object):
 
 class SolrSearch(BaseSearch):
 
-    def __init__(self, original=None):
+    def __init__(self, interface, original=None):
+        self.interface = interface
         if original is None:
             self.more_like_this = MoreLikeThisOptions()
             self._init_common_modules()
@@ -539,6 +540,10 @@ class SolrSearch(BaseSearch):
             options['q'] = '*:*'  # search everything
         return options
 
+    def execute(self):
+        ret = self.interface.search(**self.options())
+        return ret
+
 
 class MltSolrSearch(BaseSearch):
 
@@ -546,8 +551,9 @@ class MltSolrSearch(BaseSearch):
     trivial_encodings = [
         "utf_8", "u8", "utf", "utf8", "ascii", "646", "us_ascii"]
 
-    def __init__(self, content=None, content_charset=None, url=None,
+    def __init__(self, interface, content=None, content_charset=None, url=None,
                  original=None):
+        self.interface = interface
         if original is None:
             if content is not None and url is not None:
                 raise ValueError(
@@ -612,6 +618,10 @@ class MltSolrSearch(BaseSearch):
         if self.url is not None:
             options['stream.url'] = self.url
         return options
+
+    def execute(self):
+        ret = self.interface.mlt_search(content=self.content, **self.options())
+        return ret
 
 
 class Options(object):

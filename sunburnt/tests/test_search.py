@@ -174,13 +174,13 @@ if HAS_MX_DATETIME:
 
 
 def check_query_data(method, args, kwargs, output):
-    solr_search = SolrSearch()
+    solr_search = SolrSearch(None)
     p = getattr(solr_search, method)(*args, **kwargs).params()
     assert p == output, "Unequal: %r, %r" % (p, output)
 
 
 def check_mlt_query_data(method, args, kwargs, output):
-    solr_search = MltSolrSearch()
+    solr_search = MltSolrSearch(None)
     p = getattr(solr_search, method)(*args, **kwargs).params()
     assert p == output, "Unequal: %r, %r" % (p, output)
 
@@ -492,7 +492,7 @@ mlt_query_options_data = (
 
 
 def check_mlt_query_options(fields, query_fields, kwargs, output):
-    q = MltSolrSearch(content="This is the posted content.")
+    q = MltSolrSearch(None, content="This is the posted content.")
     q = q.mlt(fields, query_fields=query_fields, **kwargs)
     assert_equal(q.params(), output)
 
@@ -522,7 +522,7 @@ def test_bad_option_data():
 
 
 def test_complex_boolean_queries():
-    solr_search = SolrSearch()
+    solr_search = SolrSearch(None)
     for query, output in complex_boolean_queries:
         yield check_complex_boolean_query, solr_search, query, output
 
