@@ -19,8 +19,7 @@ setup(
     ],
     install_requires=[
         'setuptools >= 1.1.6',
-        'httplib2',
-        'lxml',
+        'requests',
         'pytz',
         'egenix-mx-base',
         'nose',
