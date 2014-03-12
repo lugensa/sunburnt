@@ -520,6 +520,14 @@ class BaseSearch(object):
     def params(self):
         return params_from_dict(**self.options())
 
+    def constructor(self, result, constructor):
+        construct_docs = lambda docs: [constructor(**d) for d in docs]
+        result.result.docs = construct_docs(result.result.docs)
+        for key in result.more_like_these:
+            result.more_like_these[key].docs = construct_docs(
+                result.more_like_these[key].docs)
+        return result
+
 
 class SolrSearch(BaseSearch):
 
@@ -540,8 +548,10 @@ class SolrSearch(BaseSearch):
             options['q'] = '*:*'  # search everything
         return options
 
-    def execute(self):
+    def execute(self, constructor=None):
         ret = self.interface.search(**self.options())
+        if constructor:
+            ret = self.constructor(ret, constructor)
         return ret
 
 
@@ -619,8 +629,10 @@ class MltSolrSearch(BaseSearch):
             options['stream.url'] = self.url
         return options
 
-    def execute(self):
+    def execute(self, constructor=None):
         ret = self.interface.mlt_search(content=self.content, **self.options())
+        if constructor:
+            ret = self.constructor(ret, constructor)
         return ret
 
 

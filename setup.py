@@ -21,7 +21,6 @@ setup(
         'setuptools >= 1.1.6',
         'requests',
         'pytz',
-        'egenix-mx-base',
         'nose',
         'coverage',
     ],

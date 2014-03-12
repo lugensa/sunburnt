@@ -92,9 +92,9 @@ class SolrResult(object):
         for doc in docs:
             for name, value in doc.items():
                 if name in datefields:
-                    doc[name] = sunburnt.dates.solr_date(value)
+                    doc[name] = sunburnt.dates.solr_date(value)._dt_obj
                 elif name.endswith(datefields):
-                    doc[name] = sunburnt.dates.solr_date(value)
+                    doc[name] = sunburnt.dates.solr_date(value)._dt_obj
         return docs
 
     def __str__(self):

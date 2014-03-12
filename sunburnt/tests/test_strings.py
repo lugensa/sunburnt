@@ -1,4 +1,5 @@
-from sunburnt.strings import RawString
+from sunburnt.strings import (RawString, WildcardString)
+from sunburnt.search import LuceneQuery
 
 
 def test_string_escape():
@@ -9,3 +10,8 @@ def test_string_escape():
     assert escaped == u'\\+\\-\\&\\|\\!\\(\\)\\{\\}\\[\\]\\^\\"\\~\\*\\?\\:\\ \\\t\\\x0b\\\\\\/'
 
 
+def test_wildcard_string():
+    q = LuceneQuery()
+    q = q.Q(WildcardString(u'occurrencetype$$pressemitteilung$$*'))
+    output = {None: u'occurrencetype$$pressemitteilung$$*'}
+    assert q.options() == output, "Unequal: %r, %r" % (q.options(), output)
